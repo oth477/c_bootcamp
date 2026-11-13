@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assignment 14 - DOM-XSS Lab & Secure DOM Manipulation</title>
+    <style>
+        body { font-family: monospace; background-color: #121212; color: #e0e0e0; padding: 25px; }
+        .container { max-width: 800px; margin: 0 auto; background: #1e1e1e; padding: 20px; border: 1px solid #333; border-radius: 6px; }
+        h2, h3 { color: #4fc3f7; margin-top: 0; }
+        .input-group { margin-bottom: 15px; }
+        input[type="text"] { width: 96%; padding: 10px; font-family: monospace; font-size: 14px; background: #2c2c2c; color: #fff; border: 1px solid #555; border-radius: 4px; }
+        .btn-group { margin-bottom: 20px; }
+        button { padding: 10px 16px; font-family: monospace; font-size: 13px; border: none; border-radius: 4px; cursor: pointer; margin-right: 8px; font-weight: bold; }
+        .btn-unsafe { background-color: #d32f2f; color: #fff; }
+        .btn-safe { background-color: #2e7d32; color: #fff; }
+        .btn-payload { background-color: #0288d1; color: #fff; }
+        .btn-clear { background-color: #616161; color: #fff; }
+        .output-box { background: #161616; border: 1px solid #444; padding: 15px; margin-bottom: 15px; border-radius: 4px; min-height: 50px; }
+        .unsafe-border { border-left: 5px solid #ff5252; }
+        .safe-border { border-left: 5px solid #00e676; }
+        .record-item { padding: 8px; background: #222; margin-top: 8px; border-radius: 3px; }
+        code { color: #ffb74d; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>DOM-Based XSS Lab: Unsafe (innerHTML) vs. Safe (textContent)</h2>
+    <p>Test how the Document Object Model (DOM) processes untrusted user input when using dangerous sinks versus safe DOM APIs.</p>
+
+    <!-- 1. User Input Section -->
+    <div class="input-group">
+        <label for="userInput"><strong>Enter Text or XSS Payload:</strong></label><br><br>
+        <input type="text" id="userInput" value="<img src=x onerror=alert(1)>" placeholder="Type input or payload here...">
+    </div>
+
+    <!-- 2. Control Buttons (Unsafe / Safe / Helpers) -->
+    <div class="btn-group">
+        <button type="button" class="btn-unsafe" id="btnUnsafe">1. Render Unsafe (innerHTML)</button>
+        <button type="button" class="btn-safe" id="btnSafe">2. Render Safe (textContent + createElement)</button>
+        <button type="button" class="btn-payload" id="btnInsertPayload">Insert Test Payload</button>
+        <button type="button" class="btn-clear" id="btnClear">Clear Outputs</button>
+    </div>
+
+    
+    <!-- 3. Unsafe Output Container -->
+    <h3>A) Unsafe Output Container (Uses <code>innerHTML</code>):</h3>
+    <div id="unsafeOutput" class="output-box unsafe-border">
+        <em>Waiting for unsafe rendering...</em>
+    </div>
+
+
+    <!-- 4. Safe Output Container -->
+    <h3>B) Safe Output Container (Uses <code>createElement</code> &amp; <code>textContent</code>):</h3>
+    <div id="safeOutput" class="output-box safe-border">
+        <em>Waiting for safe rendering...</em>
+    </div>
+</div>
+
+<script>
+    // Reference DOM elements
+    const userInputField = document.getElementById('userInput');
+    const unsafeOutput   = document.getElementById('unsafeOutput');
+    const safeOutput     = document.getElementById('safeOutput');
+    const btnUnsafe      = document.getElementById('btnUnsafe');
+    const btnSafe        = document.getElementById('btnSafe');
+    const btnPayload     = document.getElementById('btnInsertPayload');
+    const btnClear       = document.getElementById('btnClear');
+
+    // Step 3: Unsafe Rendering Function (Vulnerable to DOM-XSS)
+    btnUnsafe.addEventListener('click', function () {
+        // Capture untrusted input from the DOM source
+        const rawInput = document.getElementById('userInput').value;
+
+        // VULNERABLE SINK: Directly concatenating untrusted input into innerHTML
+        // The browser parses the string as active HTML and executes event handlers like onerror
+        unsafeOutput.innerHTML = "<div class='record-item'><strong>User Input (Unsafe): </strong>" + rawInput + "</div>";
+    });
+
+    // Step 4: Safe Rendering Function (Protected against DOM-XSS)
+    btnSafe.addEventListener('click', function () {
+        // Capture untrusted input from the DOM source
+        const rawInput = document.getElementById('userInput').value;
+
+        // Clear previous placeholder content safely
+        safeOutput.textContent = '';
+
+
+        // Build structural elements securely using document.createElement()
+        const wrapperDiv = document.createElement('div');
+        wrapperDiv.className = 'record-item';
+
+        const labelStrong = document.createElement('strong');
+        labelStrong.textContent = 'User Input (Safe): ';
+
+        const contentSpan = document.createElement('span');
+        // SAFE SINK: textContent treats the input strictly as a raw text node, neutralizing HTML/JS
+        contentSpan.textContent = rawInput;
+
+        // Append structural elements to the DOM tree using appendChild()
+        wrapperDiv.appendChild(labelStrong);
+        wrapperDiv.appendChild(contentSpan);
+        safeOutput.appendChild(wrapperDiv);
+    });
+
+
+    // Helper: Re-insert the standard XSS test payload into the input field
+    btnPayload.addEventListener('click', function () {
+        userInputField.value = "<img src=x onerror=alert(1)>";
+    });
+
+
+    // Helper: Reset both output containers cleanly
+    btnClear.addEventListener('click', function () {
+        unsafeOutput.textContent = 'Cleared.';
+        safeOutput.textContent   = 'Cleared.';
+    });
+</script>
+
+</body>
+</html>
